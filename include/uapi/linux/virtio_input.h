@@ -1,9 +1,6 @@
-#ifndef _LINUX_VIRTIO_IDS_H
-#define _LINUX_VIRTIO_IDS_H
-/*
- * Virtio IDs
- *
- * This header is BSD licensed so anyone can use the definitions to implement
+#ifndef _LINUX_VIRTIO_INPUT_H
+#define _LINUX_VIRTIO_INPUT_H
+/* This header is BSD licensed so anyone can use the definitions to implement
  * compatible drivers/servers.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,17 +25,41 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE. */
+#include <linux/virtio_ids.h>
+#include <linux/virtio_config.h>
 
-#define VIRTIO_ID_NET		1 /* virtio net */
-#define VIRTIO_ID_BLOCK		2 /* virtio block */
-#define VIRTIO_ID_CONSOLE	3 /* virtio console */
-#define VIRTIO_ID_RNG		4 /* virtio rng */
-#define VIRTIO_ID_BALLOON	5 /* virtio balloon */
-#define VIRTIO_ID_RPMSG		7 /* virtio remote processor messaging */
-#define VIRTIO_ID_SCSI		8 /* virtio scsi */
-#define VIRTIO_ID_9P		9 /* 9p virtio console */
-#define VIRTIO_ID_RPROC_SERIAL 11 /* virtio remoteproc serial link */
-#define VIRTIO_ID_CAIF	       12 /* Virtio caif */
-#define VIRTIO_ID_INPUT        18 /* virtio input */
+enum virtio_input_config_select {
+	VIRTIO_INPUT_CFG_UNSET      = 0x00,
+	VIRTIO_INPUT_CFG_ID_NAME    = 0x01,
+	VIRTIO_INPUT_CFG_ID_SERIAL  = 0x02,
+	VIRTIO_INPUT_CFG_PROP_BITS  = 0x10,
+	VIRTIO_INPUT_CFG_EV_BITS    = 0x11,
+	VIRTIO_INPUT_CFG_ABS_INFO   = 0x12,
+};
 
-#endif /* _LINUX_VIRTIO_IDS_H */
+struct virtio_input_absinfo {
+	__le32  min;
+	__le32  max;
+	__le32  fuzz;
+	__le32  flat;
+};
+
+struct virtio_input_config {
+	__u8    select;
+	__u8    subsel;
+	__u8    size;
+	__u8    reserved;
+	union {
+		char string[128];
+		__u8 bitmap[128];
+		struct virtio_input_absinfo abs;
+	} u;
+};
+
+struct virtio_input_event {
+	__le16 type;
+	__le16 code;
+	__le32 value;
+};
+
+#endif /* _LINUX_VIRTIO_INPUT_H */
