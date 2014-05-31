@@ -2537,6 +2537,8 @@ static int dummy_hcd_probe(struct platform_device *pdev)
 			goto dealloc_usb2_hcd;
 		}
 
+		ss_hcd->can_do_streams = 1;
+
 		retval = usb_add_hcd(ss_hcd, 0, 0);
 		if (retval)
 			goto put_usb3_hcd;
