@@ -2364,7 +2364,6 @@ static int dummy_start(struct usb_hcd *hcd)
 	INIT_LIST_HEAD(&dum_hcd->urbp_list);
 
 	hcd->power_budget = POWER_BUDGET;
-	hcd->state = HC_STATE_RUNNING;
 	hcd->uses_new_polling = 1;
 
 #ifdef CONFIG_USB_OTG
