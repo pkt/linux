@@ -166,7 +166,7 @@ enum dummy_rh_state {
 struct dummy_hcd {
 	struct dummy			*dum;
 	enum dummy_rh_state		rh_state;
-	struct timer_list		timer;
+	struct tasklet_hrtimer		ttimer;
 	u32				port_status;
 	u32				old_status;
 	unsigned long			re_timeout;
@@ -1183,8 +1183,11 @@ static int dummy_urb_enqueue(
 		urb->error_count = 1;		/* mark as a new urb */
 
 	/* kick the scheduler, it'll do the rest */
-	if (!timer_pending(&dum_hcd->timer))
-		mod_timer(&dum_hcd->timer, jiffies + 1);
+	if (!hrtimer_is_queued(&dum_hcd->ttimer.timer)) {
+		tasklet_hrtimer_start(&dum_hcd->ttimer,
+				ms_to_ktime(1),
+				HRTIMER_MODE_REL);
+	}
 
  done:
 	spin_unlock_irqrestore(&dum_hcd->dum->lock, flags);
@@ -1204,8 +1207,12 @@ static int dummy_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 
 	rc = usb_hcd_check_unlink_urb(hcd, urb, status);
 	if (!rc && dum_hcd->rh_state != DUMMY_RH_RUNNING &&
-			!list_empty(&dum_hcd->urbp_list))
-		mod_timer(&dum_hcd->timer, jiffies);
+			!list_empty(&dum_hcd->urbp_list) &&
+			!hrtimer_is_queued(&dum_hcd->ttimer.timer)) {
+		tasklet_hrtimer_start(&dum_hcd->ttimer,
+				ns_to_ktime(100),
+				HRTIMER_MODE_REL);
+	}
 
 	spin_unlock_irqrestore(&dum_hcd->dum->lock, flags);
 	return rc;
@@ -1642,10 +1649,12 @@ static int handle_control_request(struct dummy_hcd *dum_hcd, struct urb *urb,
 /* drive both sides of the transfers; looks like irq handlers to
  * both drivers except the callbacks aren't in_irq().
  */
-static void dummy_timer(unsigned long _dum_hcd)
+static enum hrtimer_restart dummy_timer(struct hrtimer *timer)
 {
-	struct dummy_hcd	*dum_hcd = (struct dummy_hcd *) _dum_hcd;
 	struct dummy		*dum = dum_hcd->dum;
+	struct dummy_hcd	*dum_hcd = container_of(timer,
+				struct dummy_hcd, ttimer.timer);
+
 	struct urbp		*urbp, *tmp;
 	unsigned long		flags;
 	int			limit, total;
@@ -1668,10 +1677,8 @@ static void dummy_timer(unsigned long _dum_hcd)
 		break;
 	default:
 		dev_err(dummy_dev(dum_hcd), "bogus device speed\n");
-		return;
+		goto out;
 	}
-
-	/* FIXME if HZ != 1000 this will probably misbehave ... */
 
 	/* look at each urb queued by the host side driver */
 	spin_lock_irqsave(&dum->lock, flags);
@@ -1680,7 +1687,7 @@ static void dummy_timer(unsigned long _dum_hcd)
 		dev_err(dummy_dev(dum_hcd),
 				"timer fired with no URBs pending?\n");
 		spin_unlock_irqrestore(&dum->lock, flags);
-		return;
+		goto out;
 	}
 
 	for (i = 0; i < DUMMY_ENDPOINTS; i++) {
@@ -1852,10 +1859,14 @@ return_urb:
 		dum_hcd->udev = NULL;
 	} else if (dum_hcd->rh_state == DUMMY_RH_RUNNING) {
 		/* want a 1 msec delay here */
-		mod_timer(&dum_hcd->timer, jiffies + msecs_to_jiffies(1));
+		tasklet_hrtimer_start(&dum_hcd->ttimer, ms_to_ktime(1),
+				HRTIMER_MODE_REL);
 	}
 
 	spin_unlock_irqrestore(&dum->lock, flags);
+
+out:
+	return HRTIMER_NORESTART;
 }
 
 /*-------------------------------------------------------------------------*/
@@ -2235,7 +2246,9 @@ static int dummy_bus_resume(struct usb_hcd *hcd)
 		dum_hcd->rh_state = DUMMY_RH_RUNNING;
 		set_link_state(dum_hcd);
 		if (!list_empty(&dum_hcd->urbp_list))
-			mod_timer(&dum_hcd->timer, jiffies);
+			tasklet_hrtimer_start(&dum_hcd->ttimer,
+					ms_to_ktime(1),
+					HRTIMER_MODE_REL);
 		hcd->state = HC_STATE_RUNNING;
 	}
 	spin_unlock_irq(&dum_hcd->dum->lock);
@@ -2344,9 +2357,8 @@ static int dummy_start(struct usb_hcd *hcd)
 		return dummy_start_ss(dum_hcd);
 
 	spin_lock_init(&dum_hcd->dum->lock);
-	init_timer(&dum_hcd->timer);
-	dum_hcd->timer.function = dummy_timer;
-	dum_hcd->timer.data = (unsigned long)dum_hcd;
+	tasklet_hrtimer_init(&dum_hcd->ttimer, dummy_timer,
+		CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
 	dum_hcd->rh_state = DUMMY_RH_RUNNING;
 
 	INIT_LIST_HEAD(&dum_hcd->urbp_list);
