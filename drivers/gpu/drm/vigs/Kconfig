@@ -1,0 +1,23 @@
+#
+# VIGS configuration
+#
+
+config DRM_VIGS
+	tristate "DRM Support for VIGS"
+	depends on DRM && PCI
+	select DRM_KMS_HELPER
+	select DRM_TTM
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	select VT_HW_CONSOLE_BINDING if FRAMEBUFFER_CONSOLE
+	help
+	  This module enables VIGS passthrough from emulated system
+	  to hypervisor (for example, QEMU).
+
+config DRM_VIGS_DEBUG
+	bool "VIGS debug messages"
+	depends on DRM_VIGS
+	default no
+	help
+	  Enable VIGS debug messages.
