@@ -1,0 +1,22 @@
+#
+# YaGL configuration
+#
+
+menuconfig YAGL
+	tristate "YaGL passthrough driver"
+	depends on (DRM || FB)
+	default n
+	help
+	  This module enables YaGL passthrough from emulated system
+	  to hypervisor (for example, QEMU). Must be used together with fake
+	  (hypervisor-aware) OpenGL ES libraries.
+
+if YAGL
+
+config YAGL_DEBUG
+	bool "YaGL calls debug messages"
+	default no
+	help
+	  Enable YaGL debug messages.
+
+endif
