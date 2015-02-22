@@ -261,7 +261,7 @@ __megasas_return_cmd(struct megasas_instance *instance, struct megasas_cmd *cmd)
  * @instance:		Adapter soft state
  * @cmd:		Command packet to be returned to free command pool
  */
-inline void
+void
 megasas_return_cmd(struct megasas_instance *instance, struct megasas_cmd *cmd)
 {
 	unsigned long flags;
