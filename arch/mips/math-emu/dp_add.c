@@ -150,8 +150,8 @@ union ieee754dp ieee754dp_add(union ieee754dp x, union ieee754dp y)
 		 * leaving result in xm, xs and xe.
 		 */
 		xm = xm + ym;
-		xe = xe;
-		xs = xs;
+		/* xe does not change */
+		/* xs does not change */
 
 		if (xm >> (DP_FBITS + 1 + 3)) { /* carry out */
 			xm = XDPSRS1(xm);
@@ -160,11 +160,11 @@ union ieee754dp ieee754dp_add(union ieee754dp x, union ieee754dp y)
 	} else {
 		if (xm >= ym) {
 			xm = xm - ym;
-			xe = xe;
-			xs = xs;
+			/* xe does not change */
+			/* xs does not change */
 		} else {
 			xm = ym - xm;
-			xe = xe;
+			/* xe does not change */
 			xs = ys;
 		}
 		if (xm == 0)
